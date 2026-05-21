@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Night Hawk Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Night Hawk</div>
+    <div class="logo-sub">Bottle Inventory</div>
+  </div>
+  <div class="header-right"></div>
+</header>
+
+<div class="container">
+
+  <!-- ─── LEFT: EXPORT + VOICE PANEL ─── -->
+  <div style="display:flex; flex-direction:column; gap:0.75rem;">
+  <button class="btn-download" id="btnDownload">
+    <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 8v2h14v-2H5z"/></svg>
+    Export to XLSX
+  </button>
+  <aside class="voice-panel">
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micBtn" title="Hold to record">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.5 9a.5.5 0 0 1 .5.5A7 7 0 0 1 12.5 17.9V20h2.5a.5.5 0 0 1 0 1h-6a.5.5 0 0 1 0-1h2.5v-2.1A7 7 0 0 1 5 10.5a.5.5 0 0 1 1 0 6 6 0 0 0 12 0 .5.5 0 0 1 .5-.5z"/>
+        </svg>
+      </button>
+      <div class="mic-status" id="micStatus">Click to Speak</div>
+    </div>
+
+    <div class="transcript-box">
+      <span class="label">Heard</span>
+      <div class="transcript-text" id="transcriptText">—</div>
+    </div>
+
+    <div class="parse-confirm" id="parseConfirm">
+      <span class="label">Parsed as</span>
+      <div class="parse-row">
+        <span class="parse-key">Bottle</span>
+        <input class="parse-edit-input" id="parsedName" type="text" autocomplete="off" />
+      </div>
+      <div class="parse-row">
+        <span class="parse-key">Level</span>
+        <span class="parse-val level-val">
+          <input class="level-slider" id="parsedLevel" type="range" min="0" max="1" step="0.1" style="flex:1;" />
+          <span class="level-fraction" id="parsedLevelDisplay" style="min-width:2rem; text-align:right;">0.0</span>
+        </span>
+      </div>
+      <div class="parse-actions">
+        <button class="btn-confirm" id="btnConfirm">✓ Apply</button>
+        <button class="btn-discard" id="btnDiscard">✕ Discard</button>
+      </div>
+    </div>
+
+    <div class="parse-error" id="parseError"></div>
+
+  </aside>
+  </div>
+
+  <!-- ─── RIGHT: INVENTORY ─── -->
+  <main class="inventory-panel">
+    <div class="inventory-header">
+      <div class="inventory-title">Inventory</div>
+      <div class="sort-controls">
+        <span class="sort-label">Sort</span>
+        <button class="sort-btn" id="sortName" onclick="setSort('name')">Name</button>
+        <button class="sort-btn active" id="sortDate" onclick="setSort('date')">Recent</button>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search Bottles…" oninput="renderInventory()" />
+    </div>
+
+    <div id="bottleCount" class="bottle-count" style="margin-bottom:1rem;"></div>
+
+    <div id="inventoryContainer">
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24"><path d="M20 3H4v10c0 3.87 3.13 7 7 7s7-3.13 7-7v-3h2V3zM6 5h12v3H6V5z"/></svg>
+        <p>No bottles tracked yet</p>
+        <p style="font-size:0.65rem; color:var(--text-muted)">Use voice or add manually below</p>
+      </div>
+    </div>
+
+    <!-- Manual add -->
+    <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border);">
+      <div class="panel-title" style="margin-bottom:1rem;">Add Manually</div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="manualName" placeholder="Bottle Name" class="edit-input" style="flex:1; min-width:80px;" />
+        <div class="level-container" style="position:relative; cursor:pointer; flex:1; min-width:80px; margin-bottom:0;">
+          <input type="range" class="level-slider-overlay" id="manualLevel" min="0" max="1" step="0.1" value="1"
+            oninput="updateManualBar(this.value)" />
+          <div class="level-bar-track">
+            <div class="level-bar-fill" id="manualLevelFill" style="width:100%; background:linear-gradient(90deg, #4d7c5a88, #4d7c5a);"></div>
+          </div>
+          <div class="level-labels">
+            <span class="level-pct" id="manualLevelPct" style="color:#4d7c5a;">100%</span>
+            <span class="level-fraction" id="manualLevelVal">1.0</span>
+          </div>
+        </div>
+        <button class="btn-edit-set" style="flex:none; padding:0.3rem 1rem;" onclick="addManual()">Add</button>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="sketch.js"></script>
+</body>
+</html>
